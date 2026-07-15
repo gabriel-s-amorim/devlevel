@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
 
 interface Experiment {
-  _id: string;
+  id: string;
   name: string;
   description?: string;
   startDate: string;
@@ -212,13 +212,13 @@ export default function ExperimentsPage() {
           <ul className="space-y-3">
             {experiments.map((exp) => (
               <li
-                key={exp._id}
+                key={exp.id}
                 className="rounded-xl border border-border bg-card p-4 transition-shadow duration-200 hover:shadow-lg hover:shadow-accent/5"
               >
                 <div className="flex justify-between items-start">
                   <div>
                     <Link
-                      href={`/experiments/${exp._id}`}
+                      href={`/experiments/${exp.id}`}
                       className="font-medium text-foreground hover:text-accent transition-colors duration-200"
                     >
                       {exp.name}
@@ -241,7 +241,7 @@ export default function ExperimentsPage() {
                     )}
                   </div>
                   <Link
-                    href={`/experiments/${exp._id}`}
+                    href={`/experiments/${exp.id}`}
                     className="text-sm text-accent hover:underline flex items-center gap-1 shrink-0"
                   >
                     Ver detalhes

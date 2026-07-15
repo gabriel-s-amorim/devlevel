@@ -1,60 +1,75 @@
-import mongoose from "mongoose";
 import { startOfWeek } from "date-fns";
-import { connectDB } from "@/lib/db";
-import { WeeklyReflection } from "@/lib/db/models";
+import { prisma } from "@/lib/db/prisma";
 import type { CreateReflectionInput, UpdateReflectionInput } from "@/lib/validators/reflection";
+import { AppError } from "@/lib/utils/errors";
 
-export async function create(
-  userId: string,
-  input: CreateReflectionInput
-): Promise<{ _id: string; weekStartDate: Date; [key: string]: unknown }> {
-  await connectDB();
+export async function create(userId: string, input: CreateReflectionInput) {
   const weekStart = startOfWeek(new Date(input.weekStartDate), { weekStartsOn: 1 });
-  const doc = await WeeklyReflection.create({
-    userId: new mongoose.Types.ObjectId(userId),
-    weekStartDate: weekStart,
-    whatDidILearn: input.whatDidILearn,
-    whereDidIImprove: input.whereDidIImprove,
-    mainChallenge: input.mainChallenge,
-    autonomyAverage: input.autonomyAverage,
+
+  try {
+    return await prisma.weeklyReflection.create({
+      data: {
+        userId,
+        weekStartDate: weekStart,
+        whatDidILearn: input.whatDidILearn,
+        whereDidIImprove: input.whereDidIImprove,
+        mainChallenge: input.mainChallenge,
+        autonomyAverage: input.autonomyAverage,
+      },
+    });
+  } catch {
+    throw new AppError(400, "Já existe uma reflexão para esta semana");
+  }
+}
+
+export async function list(userId: string, limit = 20) {
+  return prisma.weeklyReflection.findMany({
+    where: { userId },
+    orderBy: { weekStartDate: "desc" },
+    take: limit,
   });
-  return {
-    _id: doc._id.toString(),
-    weekStartDate: doc.weekStartDate,
-    ...doc.toObject(),
-  } as { _id: string; weekStartDate: Date; [key: string]: unknown };
 }
 
-export async function list(
-  userId: string,
-  limit = 20
-): Promise<{ _id: string; weekStartDate: Date; [key: string]: unknown }[]> {
-  await connectDB();
-  const docs = await WeeklyReflection.find({ userId: new mongoose.Types.ObjectId(userId) })
-    .sort({ weekStartDate: -1 })
-    .limit(limit)
-    .lean();
-  return docs.map((d) => ({
-    ...d,
-    _id: (d._id as mongoose.Types.ObjectId).toString(),
-    weekStartDate: d.weekStartDate,
-  })) as { _id: string; weekStartDate: Date; [key: string]: unknown }[];
-}
-
-export async function getByWeek(
-  userId: string,
-  weekStartDate: Date
-): Promise<{ _id: string; weekStartDate: Date; [key: string]: unknown } | null> {
-  await connectDB();
+export async function getByWeek(userId: string, weekStartDate: Date) {
   const weekStart = startOfWeek(new Date(weekStartDate), { weekStartsOn: 1 });
-  const doc = await WeeklyReflection.findOne({
-    userId: new mongoose.Types.ObjectId(userId),
-    weekStartDate: weekStart,
-  }).lean() as { _id: mongoose.Types.ObjectId; weekStartDate: Date; [key: string]: unknown } | null;
-  if (!doc) return null;
-  return {
-    ...doc,
-    _id: doc._id.toString(),
-    weekStartDate: doc.weekStartDate,
-  } as { _id: string; weekStartDate: Date; [key: string]: unknown };
+  return prisma.weeklyReflection.findUnique({
+    where: {
+      userId_weekStartDate: { userId, weekStartDate: weekStart },
+    },
+  });
+}
+
+export async function getById(userId: string, id: string) {
+  return prisma.weeklyReflection.findFirst({
+    where: { id, userId },
+  });
+}
+
+export async function update(userId: string, id: string, input: UpdateReflectionInput) {
+  const existing = await prisma.weeklyReflection.findFirst({ where: { id, userId } });
+  if (!existing) return null;
+
+  return prisma.weeklyReflection.update({
+    where: { id },
+    data: {
+      ...(input.weekStartDate !== undefined && {
+        weekStartDate: startOfWeek(new Date(input.weekStartDate), { weekStartsOn: 1 }),
+      }),
+      ...(input.whatDidILearn !== undefined && { whatDidILearn: input.whatDidILearn }),
+      ...(input.whereDidIImprove !== undefined && {
+        whereDidIImprove: input.whereDidIImprove,
+      }),
+      ...(input.mainChallenge !== undefined && { mainChallenge: input.mainChallenge }),
+      ...(input.autonomyAverage !== undefined && {
+        autonomyAverage: input.autonomyAverage,
+      }),
+    },
+  });
+}
+
+export async function remove(userId: string, id: string): Promise<boolean> {
+  const existing = await prisma.weeklyReflection.findFirst({ where: { id, userId } });
+  if (!existing) return false;
+  await prisma.weeklyReflection.delete({ where: { id } });
+  return true;
 }

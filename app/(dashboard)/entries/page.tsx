@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { Icon } from "@/components/ui/Icon";
 
 interface Entry {
-  _id: string;
+  id: string;
   date: string;
   projectName?: string;
   entryType: string;
@@ -302,7 +302,7 @@ export default function EntriesPage() {
           <ul className="space-y-3">
             {entries.map((e) => (
               <li
-                key={e._id}
+                key={e.id}
                 className="rounded-xl border border-border bg-card p-4 flex justify-between gap-4 transition-shadow duration-200 hover:shadow-lg hover:shadow-accent/5"
               >
                 <div className="min-w-0 flex-1">
@@ -335,12 +335,12 @@ export default function EntriesPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleDelete(e._id)}
-                  disabled={deletingId === e._id}
+                  onClick={() => handleDelete(e.id)}
+                  disabled={deletingId === e.id}
                   className="shrink-0 self-start px-3 py-1.5 text-sm rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors duration-200 disabled:opacity-50 flex items-center gap-1"
                 >
                   <Icon name="delete" size={16} />
-                  {deletingId === e._id ? "Excluindo..." : "Excluir"}
+                  {deletingId === e.id ? "Excluindo..." : "Excluir"}
                 </button>
               </li>
             ))}

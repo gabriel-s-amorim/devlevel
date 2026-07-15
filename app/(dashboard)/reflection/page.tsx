@@ -5,7 +5,7 @@ import { startOfWeek, format } from "date-fns";
 import { Icon } from "@/components/ui/Icon";
 
 interface Reflection {
-  _id: string;
+  id: string;
   weekStartDate: string;
   whatDidILearn?: string;
   whereDidIImprove?: string;
@@ -17,91 +17,142 @@ const inputClass =
   "w-full border border-border rounded-xl bg-background px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all duration-200";
 const labelClass = "block text-sm font-medium text-foreground mb-1.5";
 
+const emptyForm = () => ({
+  weekStartDate: format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd"),
+  whatDidILearn: "",
+  whereDidIImprove: "",
+  mainChallenge: "",
+  autonomyAverage: "",
+});
+
 export default function ReflectionPage() {
   const [reflections, setReflections] = useState<Reflection[]>([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({
-    weekStartDate: format(
-      startOfWeek(new Date(), { weekStartsOn: 1 }),
-      "yyyy-MM-dd"
-    ),
-    whatDidILearn: "",
-    whereDidIImprove: "",
-    mainChallenge: "",
-    autonomyAverage: "",
-  });
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/reflections", { credentials: "include" })
+  function loadReflections() {
+    return fetch("/api/reflections", { credentials: "include" })
       .then((r) =>
         r.ok ? r.json() : Promise.reject(new Error("Falha ao carregar"))
       )
       .then((data) => setReflections(data.reflections || []))
-      .catch(() => setError("Erro ao carregar reflexões"))
-      .finally(() => setLoading(false));
+      .catch(() => setError("Erro ao carregar reflexões"));
+  }
+
+  useEffect(() => {
+    loadReflections().finally(() => setLoading(false));
   }, []);
+
+  function startEdit(r: Reflection) {
+    setEditingId(r.id);
+    setForm({
+      weekStartDate: format(new Date(r.weekStartDate), "yyyy-MM-dd"),
+      whatDidILearn: r.whatDidILearn ?? "",
+      whereDidIImprove: r.whereDidIImprove ?? "",
+      mainChallenge: r.mainChallenge ?? "",
+      autonomyAverage:
+        r.autonomyAverage != null ? String(r.autonomyAverage) : "",
+    });
+    setError(null);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setForm(emptyForm());
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
-    fetch("/api/reflections", {
-      method: "POST",
+
+    const payload = {
+      weekStartDate: form.weekStartDate,
+      whatDidILearn: form.whatDidILearn || undefined,
+      whereDidIImprove: form.whereDidIImprove || undefined,
+      mainChallenge: form.mainChallenge || undefined,
+      autonomyAverage: form.autonomyAverage
+        ? Number(form.autonomyAverage)
+        : undefined,
+    };
+
+    const url = editingId ? `/api/reflections/${editingId}` : "/api/reflections";
+    const method = editingId ? "PATCH" : "POST";
+
+    fetch(url, {
+      method,
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({
-        weekStartDate: form.weekStartDate,
-        whatDidILearn: form.whatDidILearn || undefined,
-        whereDidIImprove: form.whereDidIImprove || undefined,
-        mainChallenge: form.mainChallenge || undefined,
-        autonomyAverage: form.autonomyAverage
-          ? Number(form.autonomyAverage)
-          : undefined,
-      }),
+      body: JSON.stringify(payload),
     })
       .then((r) => {
         if (!r.ok)
-          return r.json().then((d) => Promise.reject(new Error(d.error?.message || "Erro")));
+          return r
+            .json()
+            .then((d) =>
+              Promise.reject(
+                new Error(
+                  typeof d.error === "string"
+                    ? d.error
+                    : d.error?.message || "Erro"
+                )
+              )
+            );
         return r.json();
       })
-      .then((newReflection) => {
-        setReflections((prev) => [newReflection, ...prev]);
-        setForm({
-          weekStartDate: format(
-            startOfWeek(new Date(), { weekStartsOn: 1 }),
-            "yyyy-MM-dd"
-          ),
-          whatDidILearn: "",
-          whereDidIImprove: "",
-          mainChallenge: "",
-          autonomyAverage: "",
-        });
+      .then(() => {
+        cancelEdit();
+        return loadReflections();
       })
-      .catch((e) => setError(e.message))
+      .catch((err) => setError(err.message))
       .finally(() => setSubmitting(false));
+  }
+
+  function handleDelete(id: string) {
+    if (!confirm("Excluir esta reflexão? Esta ação não pode ser desfeita."))
+      return;
+    setDeletingId(id);
+    setError(null);
+    fetch(`/api/reflections/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    })
+      .then((r) => {
+        if (!r.ok)
+          return r
+            .json()
+            .then((d) =>
+              Promise.reject(new Error(d.error || "Erro ao excluir"))
+            );
+      })
+      .then(() => loadReflections())
+      .catch((err) => setError(err.message))
+      .finally(() => setDeletingId(null));
   }
 
   if (loading)
     return (
-      <p className="text-muted-foreground animate-pulse-soft">Carregando...</p>
+      <p className="animate-pulse-soft text-muted-foreground">Carregando...</p>
     );
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+    <div className="space-y-8">
+      <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
         <Icon name="psychology" size={28} className="text-accent" />
         Reflexão semanal
       </h1>
 
       <form
         onSubmit={handleSubmit}
-        className="rounded-2xl border border-border bg-card p-6 space-y-4 max-w-xl"
+        className="max-w-xl space-y-4 rounded-2xl border border-border bg-card p-6"
       >
-        <h2 className="font-semibold text-foreground flex items-center gap-2">
+        <h2 className="flex items-center gap-2 font-semibold text-foreground">
           <Icon name="add_circle" size={22} className="text-accent" />
-          Nova reflexão
+          {editingId ? "Editar reflexão" : "Nova reflexão"}
         </h2>
         <div>
           <label className={labelClass}>Semana (início)</label>
@@ -163,60 +214,95 @@ export default function ReflectionPage() {
           />
         </div>
         {error && (
-          <p className="text-red-400 text-sm flex items-center gap-1.5">
+          <p className="flex items-center gap-1.5 text-sm text-red-400">
             <Icon name="error" size={18} />
             {error}
           </p>
         )}
-        <button
-          type="submit"
-          disabled={submitting}
-          className="px-4 py-2.5 rounded-xl gradient-accent text-accent-foreground font-medium hover:opacity-90 disabled:opacity-50 transition-all duration-200 flex items-center gap-2"
-        >
-          <Icon name="save" size={18} />
-          {submitting ? "Salvando..." : "Salvar reflexão"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="flex items-center gap-2 rounded-xl gradient-accent px-4 py-2.5 font-medium text-accent-foreground transition-all duration-200 hover:opacity-90 disabled:opacity-50"
+          >
+            <Icon name="save" size={18} />
+            {submitting
+              ? "Salvando..."
+              : editingId
+                ? "Atualizar"
+                : "Salvar reflexão"}
+          </button>
+          {editingId && (
+            <button
+              type="button"
+              onClick={cancelEdit}
+              className="rounded-xl border border-border px-4 py-2.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              Cancelar
+            </button>
+          )}
+        </div>
       </form>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         <h2 className="font-semibold text-foreground">Reflexões anteriores</h2>
         {reflections.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            Nenhuma reflexão ainda.
-          </p>
+          <p className="text-sm text-muted-foreground">Nenhuma reflexão ainda.</p>
         ) : (
           <ul className="space-y-3">
             {reflections.map((r) => (
               <li
-                key={r._id}
+                key={r.id}
                 className="rounded-xl border border-border bg-card p-4 transition-shadow duration-200 hover:shadow-lg hover:shadow-accent/5"
               >
-                <p className="text-sm font-medium text-muted-foreground">
-                  Semana de {format(new Date(r.weekStartDate), "dd/MM/yyyy")}
-                </p>
-                {r.whatDidILearn && (
-                  <p className="mt-1 text-foreground">
-                    <span className="text-muted-foreground">Aprendi:</span>{" "}
-                    {r.whatDidILearn}
-                  </p>
-                )}
-                {r.whereDidIImprove && (
-                  <p className="mt-1 text-foreground">
-                    <span className="text-muted-foreground">Melhorei:</span>{" "}
-                    {r.whereDidIImprove}
-                  </p>
-                )}
-                {r.mainChallenge && (
-                  <p className="mt-1 text-foreground">
-                    <span className="text-muted-foreground">Desafio:</span>{" "}
-                    {r.mainChallenge}
-                  </p>
-                )}
-                {r.autonomyAverage != null && (
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Autonomia média: {r.autonomyAverage}
-                  </p>
-                )}
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Semana de {format(new Date(r.weekStartDate), "dd/MM/yyyy")}
+                    </p>
+                    {r.whatDidILearn && (
+                      <p className="mt-1 text-foreground">
+                        <span className="text-muted-foreground">Aprendi:</span>{" "}
+                        {r.whatDidILearn}
+                      </p>
+                    )}
+                    {r.whereDidIImprove && (
+                      <p className="mt-1 text-foreground">
+                        <span className="text-muted-foreground">Melhorei:</span>{" "}
+                        {r.whereDidIImprove}
+                      </p>
+                    )}
+                    {r.mainChallenge && (
+                      <p className="mt-1 text-foreground">
+                        <span className="text-muted-foreground">Desafio:</span>{" "}
+                        {r.mainChallenge}
+                      </p>
+                    )}
+                    {r.autonomyAverage != null && (
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Autonomia média: {r.autonomyAverage}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => startEdit(r)}
+                      className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-accent/40 hover:text-accent"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(r.id)}
+                      disabled={deletingId === r.id}
+                      className="flex items-center gap-1 rounded-lg border border-red-500/30 px-3 py-1.5 text-sm text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+                    >
+                      <Icon name="delete" size={16} />
+                      {deletingId === r.id ? "..." : "Excluir"}
+                    </button>
+                  </div>
+                </div>
               </li>
             ))}
           </ul>

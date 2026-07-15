@@ -65,13 +65,13 @@ export function DashboardClient() {
   } = data;
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-foreground animate-fade-in flex items-center gap-2">
+    <div className="space-y-8">
+      <h1 className="flex animate-fade-in items-center gap-2 text-2xl font-bold text-foreground">
         <Icon name="dashboard" size={28} className="text-accent" />
         Dashboard
       </h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <div className="animate-slide-up opacity-0" style={{ animationDelay: "0.05s" }}>
           <LevelProgress
             level={levelProgress.level}
@@ -86,10 +86,10 @@ export function DashboardClient() {
       </div>
 
       <div
-        className="rounded-xl border border-border bg-card p-4 transition-shadow duration-200 hover:shadow-lg hover:shadow-accent/5 animate-slide-up opacity-0"
+        className="animate-slide-up rounded-xl border border-border bg-card p-5 opacity-0 transition-shadow duration-200 hover:shadow-lg hover:shadow-accent/5"
         style={{ animationDelay: "0.15s" }}
       >
-        <h3 className="font-semibold text-sm text-muted-foreground mb-1 flex items-center gap-2">
+        <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
           <Icon name="emoji_events" size={20} className="text-accent" />
           Pontos no mês
         </h3>
@@ -104,7 +104,7 @@ export function DashboardClient() {
         <WeeklyPointsChart data={weeklyPoints} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div className="animate-slide-up opacity-0" style={{ animationDelay: "0.3s" }}>
           <AutonomyTrendChart data={autonomyTrend} />
         </div>

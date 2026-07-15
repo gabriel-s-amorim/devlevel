@@ -16,15 +16,15 @@ export function DashboardSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-56 border-r border-border bg-card/50 flex flex-col gap-2 p-4 shrink-0">
+    <aside className="flex w-56 shrink-0 flex-col gap-2 border-r border-border bg-card/50 p-5">
       <Link
         href="/dashboard"
-        className="font-semibold text-lg text-foreground hover:text-accent transition-colors duration-200 flex items-center gap-2"
+        className="flex items-center gap-2 text-lg font-semibold text-foreground transition-colors duration-200 hover:text-accent"
       >
         <Icon name="terminal" size={28} className="text-accent" />
         DevLevel
       </Link>
-      <nav className="flex flex-col gap-1 mt-4">
+      <nav className="mt-6 flex flex-col gap-1">
         {navItems.map(({ href, label, icon }) => {
           const isActive =
             pathname === href ||

@@ -1,15 +1,15 @@
 export type EntryType = "project" | "incident" | "study";
 
 export interface DailyEntryDoc {
-  _id: string;
+  id: string;
   userId: string;
   date: Date;
-  projectName?: string;
+  projectName?: string | null;
   entryType: EntryType;
-  description?: string;
-  learned?: string;
-  difficulty?: number;
-  autonomyScore?: number;
+  description?: string | null;
+  learned?: string | null;
+  difficulty?: number | null;
+  autonomyScore?: number | null;
   deepWorkBlockCompleted: boolean;
   interruptionManagedWell: boolean;
   createdAt: Date;
@@ -17,28 +17,29 @@ export interface DailyEntryDoc {
 }
 
 export interface WeeklyReflectionDoc {
-  _id: string;
+  id: string;
   userId: string;
   weekStartDate: Date;
-  whatDidILearn?: string;
-  whereDidIImprove?: string;
-  mainChallenge?: string;
-  autonomyAverage?: number;
+  whatDidILearn?: string | null;
+  whereDidIImprove?: string | null;
+  mainChallenge?: string | null;
+  autonomyAverage?: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface ExperimentComplianceLog {
+  id?: string;
   date: Date;
   completed: boolean;
-  value?: number;
+  value?: number | null;
 }
 
 export interface ExperimentDoc {
-  _id: string;
+  id: string;
   userId: string;
   name: string;
-  description?: string;
+  description?: string | null;
   startDate: Date;
   endDate: Date;
   targetMetric: string;

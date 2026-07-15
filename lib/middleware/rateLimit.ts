@@ -1,11 +1,9 @@
-const store = new Map<string, { count: number; resetAt: number }>();
-const WINDOW_MS = 15 * 60 * 1000; // 15 min
-const MAX_LOGIN = 10;
-const MAX_REGISTER = 5;
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
 
-function getKey(ip: string, path: string): string {
-  return `${ip}:${path}`;
-}
+const WINDOW = "15 m";
+
+type LimitResult = { success: boolean };
 
 function getClientIp(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -15,22 +13,34 @@ function getClientIp(request: Request): string {
   return "unknown";
 }
 
-export function checkAuthRateLimit(request: Request, path: "login" | "register"): boolean {
+function createLimiter(max: number): Ratelimit | null {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return null;
+
+  return new Ratelimit({
+    redis: new Redis({ url, token }),
+    limiter: Ratelimit.slidingWindow(max, WINDOW),
+    analytics: true,
+    prefix: "devlevel:ratelimit",
+  });
+}
+
+const loginLimiter = createLimiter(10);
+const registerLimiter = createLimiter(5);
+
+/**
+ * Serverless-friendly rate limit via Upstash Redis.
+ * Graceful fallback: allows all requests when Redis is not configured (local dev).
+ */
+export async function checkAuthRateLimit(
+  request: Request,
+  path: "login" | "register"
+): Promise<boolean> {
+  const limiter = path === "login" ? loginLimiter : registerLimiter;
+  if (!limiter) return true;
+
   const ip = getClientIp(request);
-  const key = getKey(ip, path);
-  const now = Date.now();
-  const max = path === "login" ? MAX_LOGIN : MAX_REGISTER;
-  let entry = store.get(key);
-  if (!entry) {
-    store.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    return true;
-  }
-  if (now > entry.resetAt) {
-    entry = { count: 1, resetAt: now + WINDOW_MS };
-    store.set(key, entry);
-    return true;
-  }
-  entry.count++;
-  if (entry.count > max) return false;
-  return true;
+  const result: LimitResult = await limiter.limit(`${path}:${ip}`);
+  return result.success;
 }

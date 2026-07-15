@@ -6,11 +6,10 @@ import { handleApiError } from "@/lib/utils/errors";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const userId = await requireAuth(request);
-    const { id } = await params;
+    const userId = await requireAuth();
     const body = await request.json();
     const parsed = logComplianceSchema.safeParse(body);
     if (!parsed.success) {
@@ -19,7 +18,11 @@ export async function POST(
         { status: 400 }
       );
     }
-    const experiment = await experimentService.logCompliance(userId, id, parsed.data);
+    const experiment = await experimentService.logCompliance(
+      userId,
+      params.id,
+      parsed.data
+    );
     if (!experiment) {
       return NextResponse.json({ error: "Experimento não encontrado" }, { status: 404 });
     }

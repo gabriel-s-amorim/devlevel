@@ -19,26 +19,43 @@ export function calculatePointsForEntry(entry: EntryForPoints): number {
   return points;
 }
 
+function toUTCDayKey(d: Date): number {
+  const x = new Date(d);
+  return Date.UTC(x.getFullYear(), x.getMonth(), x.getDate());
+}
+
+/**
+ * Streak from unique calendar days (local timezone).
+ * `current` is non-zero only when the most recent day in the set is today.
+ */
 export function calculateStreak(dates: Date[]): { current: number; longest: number } {
   if (dates.length === 0) return { current: 0, longest: 0 };
-  const sorted = [...dates].map((d) => new Date(d).toDateString()).sort();
-  const unique = Array.from(new Set(sorted)).sort();
-  const today = new Date().toDateString();
-  let current = 0;
-  let longest = 0;
-  let run = 0;
-  for (let i = unique.length - 1; i >= 0; i--) {
-    const d = new Date(unique[i]);
-    const nextInTime = i < unique.length - 1 ? new Date(unique[i + 1]) : null;
-    if (nextInTime) {
-      const diffDays = (nextInTime.getTime() - d.getTime()) / (1000 * 60 * 60 * 24);
-      if (diffDays === 1) run++;
-      else run = 1;
-    } else run = 1;
-    longest = Math.max(longest, run);
-    if (unique[i] === today) current = run;
+
+  const uniqueDays = Array.from(new Set(dates.map(toUTCDayKey))).sort((a, b) => a - b);
+  const todayKey = toUTCDayKey(new Date());
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  let longest = 1;
+  let run = 1;
+  for (let i = 1; i < uniqueDays.length; i++) {
+    if (uniqueDays[i] - uniqueDays[i - 1] === DAY_MS) {
+      run++;
+      longest = Math.max(longest, run);
+    } else {
+      run = 1;
+    }
   }
-  return { current, longest };
+
+  let current = 0;
+  if (uniqueDays[uniqueDays.length - 1] === todayKey) {
+    current = 1;
+    for (let i = uniqueDays.length - 1; i > 0; i--) {
+      if (uniqueDays[i] - uniqueDays[i - 1] === DAY_MS) current++;
+      else break;
+    }
+  }
+
+  return { current, longest: Math.max(longest, current || 1) };
 }
 
 export { getLevelFromTotalXP } from "@/lib/constants/gamification";

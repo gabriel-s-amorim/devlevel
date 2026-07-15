@@ -4,9 +4,9 @@ import * as experimentService from "@/lib/services/experimentService";
 import { createExperimentSchema } from "@/lib/validators/experiment";
 import { handleApiError } from "@/lib/utils/errors";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const userId = await requireAuth(request);
+    const userId = await requireAuth();
     const experiments = await experimentService.list(userId);
     return NextResponse.json({ experiments });
   } catch (err) {
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = await requireAuth(request);
+    const userId = await requireAuth();
     const body = await request.json();
     const parsed = createExperimentSchema.safeParse(body);
     if (!parsed.success) {

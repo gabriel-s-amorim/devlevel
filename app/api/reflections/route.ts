@@ -6,7 +6,7 @@ import { handleApiError } from "@/lib/utils/errors";
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = await requireAuth(request);
+    const userId = await requireAuth();
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get("limit");
     const reflections = await reflectionService.list(
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = await requireAuth(request);
+    const userId = await requireAuth();
     const body = await request.json();
     const parsed = createReflectionSchema.safeParse(body);
     if (!parsed.success) {

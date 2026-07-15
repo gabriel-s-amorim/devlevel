@@ -5,13 +5,12 @@ import { updateEntrySchema } from "@/lib/validators/entry";
 import { handleApiError } from "@/lib/utils/errors";
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  _request: NextRequest,
+  { params }: { params: { id: string } }
 ) {
   try {
-    const userId = await requireAuth(request);
-    const { id } = await params;
-    const entry = await entryService.getById(userId, id);
+    const userId = await requireAuth();
+    const entry = await entryService.getById(userId, params.id);
     if (!entry) {
       return NextResponse.json({ error: "Entrada não encontrada" }, { status: 404 });
     }
@@ -24,11 +23,10 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const userId = await requireAuth(request);
-    const { id } = await params;
+    const userId = await requireAuth();
     const body = await request.json();
     const parsed = updateEntrySchema.safeParse(body);
     if (!parsed.success) {
@@ -37,7 +35,7 @@ export async function PATCH(
         { status: 400 }
       );
     }
-    const entry = await entryService.update(userId, id, parsed.data);
+    const entry = await entryService.update(userId, params.id, parsed.data);
     if (!entry) {
       return NextResponse.json({ error: "Entrada não encontrada" }, { status: 404 });
     }
@@ -49,13 +47,12 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  _request: NextRequest,
+  { params }: { params: { id: string } }
 ) {
   try {
-    const userId = await requireAuth(request);
-    const { id } = await params;
-    const deleted = await entryService.remove(userId, id);
+    const userId = await requireAuth();
+    const deleted = await entryService.remove(userId, params.id);
     if (!deleted) {
       return NextResponse.json({ error: "Entrada não encontrada" }, { status: 404 });
     }

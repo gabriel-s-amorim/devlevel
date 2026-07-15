@@ -4,13 +4,12 @@ import * as experimentService from "@/lib/services/experimentService";
 import { handleApiError } from "@/lib/utils/errors";
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  _request: NextRequest,
+  { params }: { params: { id: string } }
 ) {
   try {
-    const userId = await requireAuth(request);
-    const { id } = await params;
-    const data = await experimentService.getCorrelationData(userId, id);
+    const userId = await requireAuth();
+    const data = await experimentService.getCorrelationData(userId, params.id);
     if (!data) {
       return NextResponse.json({ error: "Experimento não encontrado" }, { status: 404 });
     }

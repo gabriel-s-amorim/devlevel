@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
+import { AuthError } from "next-auth";
+import { signIn } from "@/auth";
 import { loginSchema } from "@/lib/validators/auth";
-import * as authService from "@/lib/services/authService";
 import { handleApiError } from "@/lib/utils/errors";
-import { setAuthCookie } from "@/lib/middleware/auth";
 import { checkAuthRateLimit } from "@/lib/middleware/rateLimit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
-    if (!checkAuthRateLimit(request, "login")) {
+    if (!(await checkAuthRateLimit(request, "login"))) {
       return NextResponse.json(
         { error: "Muitas tentativas. Tente novamente em 15 minutos." },
         { status: 429 }
       );
     }
+
     const body = await request.json();
     const parsed = loginSchema.safeParse(body);
     if (!parsed.success) {
@@ -23,11 +24,24 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const { email, password } = parsed.data;
-    const result = await authService.login(email, password);
-    const res = NextResponse.json({ user: result.user });
-    res.headers.set("Set-Cookie", setAuthCookie(result.token));
-    return res;
+
+    try {
+      await signIn("credentials", {
+        email: parsed.data.email,
+        password: parsed.data.password,
+        redirect: false,
+      });
+    } catch (error) {
+      if (error instanceof AuthError) {
+        return NextResponse.json(
+          { error: "Email ou senha inválidos" },
+          { status: 401 }
+        );
+      }
+      throw error;
+    }
+
+    return NextResponse.json({ ok: true });
   } catch (error) {
     return handleApiError(error);
   }

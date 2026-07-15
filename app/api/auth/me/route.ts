@@ -1,28 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/middleware/auth";
-import { connectDB } from "@/lib/db";
-import { User } from "@/lib/db/models";
+import * as authService from "@/lib/services/authService";
+import { handleApiError } from "@/lib/utils/errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const userId = await requireAuth(request);
-    await connectDB();
-    const user = await User.findById(userId).select("email name createdAt");
+    const userId = await requireAuth();
+    const user = await authService.getUserById(userId);
     if (!user) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
-    return NextResponse.json({
-      user: {
-        id: user._id.toString(),
-        email: user.email,
-        name: user.name,
-        createdAt: user.createdAt,
-      },
-    });
+    return NextResponse.json({ user });
   } catch (err) {
     if (err instanceof Response) return err;
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(err);
   }
 }

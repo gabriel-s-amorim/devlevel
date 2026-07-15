@@ -21,7 +21,7 @@ const LINE_XP = "#22c55e";
 const LINE_AUTONOMIA = "#3b82f6";
 
 interface Experiment {
-  _id: string;
+  id: string;
   name: string;
   description?: string;
   startDate: string;
@@ -39,6 +39,13 @@ interface CorrelationData {
   }[];
   weeklyXP: { weekStart: string; points: number }[];
   weeklyAutonomy: { weekStart: string; avg: number }[];
+  rComplianceXp: number | null;
+  rComplianceAutonomy: number | null;
+}
+
+function formatR(r: number | null): string {
+  if (r == null) return "n/d";
+  return r.toFixed(3);
 }
 
 export default function ExperimentDetailPage() {
@@ -60,9 +67,9 @@ export default function ExperimentDetailPage() {
       fetch(`/api/experiments/${id}`, { credentials: "include" }).then((r) =>
         r.ok ? r.json() : Promise.reject(new Error("Não encontrado"))
       ),
-      fetch(`/api/experiments/${id}/correlation`, { credentials: "include" }).then(
-        (r) => (r.ok ? r.json() : null)
-      ),
+      fetch(`/api/experiments/${id}/correlation`, {
+        credentials: "include",
+      }).then((r) => (r.ok ? r.json() : null)),
     ])
       .then(([exp, corr]) => {
         setExperiment(exp);
@@ -99,7 +106,7 @@ export default function ExperimentDetailPage() {
 
   if (loading || !experiment) {
     return (
-      <p className="text-muted-foreground animate-pulse-soft">Carregando...</p>
+      <p className="animate-pulse-soft text-muted-foreground">Carregando...</p>
     );
   }
 
@@ -112,11 +119,11 @@ export default function ExperimentDetailPage() {
     })) ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Link
           href="/experiments"
-          className="hover:text-accent transition-colors duration-200"
+          className="transition-colors duration-200 hover:text-accent"
         >
           Experimentos
         </Link>
@@ -124,40 +131,42 @@ export default function ExperimentDetailPage() {
         <span className="text-foreground">{experiment.name}</span>
       </div>
 
-      <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-        <Icon name="science" size={28} className="text-accent" />
-        {experiment.name}
-      </h1>
-      {experiment.description && (
-        <p className="text-muted-foreground">{experiment.description}</p>
-      )}
-      <p className="text-sm text-muted-foreground">
-        {format(new Date(experiment.startDate), "dd/MM/yyyy")} –{" "}
-        {format(new Date(experiment.endDate), "dd/MM/yyyy")} ·{" "}
-        {experiment.targetMetric}
-      </p>
+      <div>
+        <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
+          <Icon name="science" size={28} className="text-accent" />
+          {experiment.name}
+        </h1>
+        {experiment.description && (
+          <p className="mt-2 text-muted-foreground">{experiment.description}</p>
+        )}
+        <p className="mt-2 text-sm text-muted-foreground">
+          {format(new Date(experiment.startDate), "dd/MM/yyyy")} –{" "}
+          {format(new Date(experiment.endDate), "dd/MM/yyyy")} ·{" "}
+          {experiment.targetMetric}
+        </p>
+      </div>
 
-      <div className="rounded-xl border border-border bg-card p-4 max-w-md">
-        <h2 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+      <div className="max-w-md rounded-xl border border-border bg-card p-5">
+        <h2 className="mb-3 flex items-center gap-2 font-semibold text-foreground">
           <Icon name="check_circle" size={20} className="text-accent" />
           Registrar compliance
         </h2>
         <form
           onSubmit={handleLogCompliance}
-          className="flex flex-wrap items-end gap-2"
+          className="flex flex-wrap items-end gap-3"
         >
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">
+            <label className="mb-1 block text-xs text-muted-foreground">
               Data
             </label>
             <input
               type="date"
               value={complianceDate}
               onChange={(e) => setComplianceDate(e.target.value)}
-              className="border border-border rounded-xl bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50"
+              className="rounded-xl border border-border bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50"
             />
           </div>
-          <label className="flex items-center gap-2 text-foreground cursor-pointer">
+          <label className="flex cursor-pointer items-center gap-2 text-foreground">
             <input
               type="checkbox"
               checked={complianceChecked}
@@ -169,7 +178,7 @@ export default function ExperimentDetailPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="px-3 py-2 rounded-xl gradient-accent text-accent-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all duration-200"
+            className="rounded-xl gradient-accent px-3 py-2 text-sm font-medium text-accent-foreground transition-all duration-200 hover:opacity-90 disabled:opacity-50"
           >
             {submitting ? "Salvando..." : "Salvar"}
           </button>
@@ -177,23 +186,28 @@ export default function ExperimentDetailPage() {
       </div>
 
       {experiment.complianceLog && experiment.complianceLog.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-4">
-          <h2 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+        <div className="rounded-xl border border-border bg-card p-5">
+          <h2 className="mb-3 flex items-center gap-2 font-semibold text-foreground">
             <Icon name="history" size={20} className="text-accent" />
             Histórico de compliance
           </h2>
-          <ul className="text-sm space-y-1 text-foreground">
+          <ul className="space-y-1 text-sm text-foreground">
             {experiment.complianceLog
+              .slice()
               .sort(
                 (a, b) =>
                   new Date(b.date).getTime() - new Date(a.date).getTime()
               )
               .slice(0, 14)
               .map((entry) => (
-                <li key={entry.date} className="flex items-center gap-2">
+                <li key={String(entry.date)} className="flex items-center gap-2">
                   {format(new Date(entry.date), "dd/MM/yyyy")}:
                   {entry.completed ? (
-                    <Icon name="check_circle" size={16} className="text-accent" />
+                    <Icon
+                      name="check_circle"
+                      size={16}
+                      className="text-accent"
+                    />
                   ) : (
                     <Icon name="cancel" size={16} className="text-red-400" />
                   )}
@@ -204,10 +218,31 @@ export default function ExperimentDetailPage() {
         </div>
       )}
 
+      {correlation && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-xl border border-border bg-card p-5">
+            <p className="text-sm text-muted-foreground">
+              Pearson · compliance × XP
+            </p>
+            <p className="mt-1 text-2xl font-bold text-accent">
+              r = {formatR(correlation.rComplianceXp)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-5">
+            <p className="text-sm text-muted-foreground">
+              Pearson · compliance × autonomia
+            </p>
+            <p className="mt-1 text-2xl font-bold text-accent">
+              r = {formatR(correlation.rComplianceAutonomy)}
+            </p>
+          </div>
+        </div>
+      )}
+
       {chartData.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-4 transition-shadow duration-200 hover:shadow-lg">
-          <h2 className="font-semibold text-foreground mb-2">
-            Correlação: XP semanal e autonomia
+        <div className="rounded-xl border border-border bg-card p-5 transition-shadow duration-200 hover:shadow-lg">
+          <h2 className="mb-4 font-semibold text-foreground">
+            Séries semanais: XP e autonomia
           </h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">

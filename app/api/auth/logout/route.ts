@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
-import { clearAuthCookie } from "@/lib/middleware/auth";
+import { signOut } from "@/auth";
+
+export const dynamic = "force-dynamic";
 
 export async function POST() {
-  const res = NextResponse.json({ ok: true });
-  res.headers.set("Set-Cookie", clearAuthCookie());
-  return res;
+  try {
+    await signOut({ redirect: false });
+  } catch {
+    // Session may already be cleared
+  }
+  return NextResponse.json({ ok: true });
 }

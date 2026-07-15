@@ -1,34 +1,27 @@
-import { connectDB } from "@/lib/db";
-import { DailyEntry } from "@/lib/db/models";
-import {
-  calculatePointsForEntry,
-  calculateStreak,
-  getLevelFromTotalXP,
-} from "@/lib/utils/gamification";
-import type { EntryForPoints } from "@/lib/utils/gamification";
-import { startOfDay, subDays, startOfWeek, endOfWeek } from "date-fns";
+import { prisma } from "@/lib/db/prisma";
+import { getLevelFromTotalXP } from "@/lib/utils/gamification";
+import { pointsFromEntry } from "@/lib/services/gamificationSync";
+import { startOfDay, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 
 export async function getTotalXP(userId: string): Promise<number> {
-  await connectDB();
-  const entries = await DailyEntry.find({ userId }).lean();
-  let total = 0;
-  for (const e of entries) {
-    total += calculatePointsForEntry({
-      entryType: e.entryType,
-      difficulty: e.difficulty,
-      deepWorkBlockCompleted: e.deepWorkBlockCompleted,
-      interruptionManagedWell: e.interruptionManagedWell,
-      learned: e.learned,
-    });
-  }
-  return total;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { xpTotal: true },
+  });
+  return user?.xpTotal ?? 0;
 }
 
-export async function getStreaks(userId: string): Promise<{ current: number; longest: number }> {
-  await connectDB();
-  const entries = await DailyEntry.find({ userId }).distinct("date");
-  const dates = entries.map((d) => new Date(d));
-  return calculateStreak(dates);
+export async function getStreaks(
+  userId: string
+): Promise<{ current: number; longest: number }> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { currentStreak: true, longestStreak: true },
+  });
+  return {
+    current: user?.currentStreak ?? 0,
+    longest: user?.longestStreak ?? 0,
+  };
 }
 
 export async function getLevelProgress(userId: string) {
@@ -41,22 +34,17 @@ export async function getPointsByDay(
   from: Date,
   to: Date
 ): Promise<{ date: string; points: number }[]> {
-  await connectDB();
-  const entries = await DailyEntry.find({
-    userId,
-    date: { $gte: startOfDay(from), $lte: startOfDay(to) },
-  }).lean();
+  const entries = await prisma.dailyEntry.findMany({
+    where: {
+      userId,
+      date: { gte: startOfDay(from), lte: startOfDay(to) },
+    },
+  });
+
   const byDay: Record<string, number> = {};
   for (const e of entries) {
     const d = startOfDay(new Date(e.date)).toISOString().slice(0, 10);
-    if (!byDay[d]) byDay[d] = 0;
-    byDay[d] += calculatePointsForEntry({
-      entryType: e.entryType,
-      difficulty: e.difficulty,
-      deepWorkBlockCompleted: e.deepWorkBlockCompleted,
-      interruptionManagedWell: e.interruptionManagedWell,
-      learned: e.learned,
-    });
+    byDay[d] = (byDay[d] ?? 0) + pointsFromEntry(e);
   }
   return Object.entries(byDay).map(([date, points]) => ({ date, points }));
 }
@@ -75,4 +63,10 @@ export async function getWeeklyPoints(
     result.push({ weekStart: weekStart.toISOString().slice(0, 10), points: total });
   }
   return result.reverse();
+}
+
+export async function getMonthlyPoints(userId: string): Promise<number> {
+  const now = new Date();
+  const data = await getPointsByDay(userId, startOfMonth(now), endOfMonth(now));
+  return data.reduce((s, p) => s + p.points, 0);
 }

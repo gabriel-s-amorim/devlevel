@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EntryType {
+  project
+  incident
+  study
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String
+  name           String?
+  xpTotal        Int      @default(0)
+  currentStreak  Int      @default(0)
+  longestStreak  Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  entries     DailyEntry[]
+  reflections WeeklyReflection[]
+  experiments Experiment[]
+}
+
+model DailyEntry {
+  id                       String    @id @default(cuid())
+  userId                   String
+  date                     DateTime
+  projectName              String?
+  entryType                EntryType
+  description              String?
+  learned                  String?
+  difficulty               Int?
+  autonomyScore            Int?
+  deepWorkBlockCompleted   Boolean   @default(false)
+  interruptionManagedWell  Boolean   @default(false)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model WeeklyReflection {
+  id               String   @id @default(cuid())
+  userId           String
+  weekStartDate    DateTime
+  whatDidILearn    String?
+  whereDidIImprove String?
+  mainChallenge    String?
+  autonomyAverage  Float?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStartDate])
+  @@index([userId])
+}
+
+model Experiment {
+  id           String   @id @default(cuid())
+  userId       String
+  name         String
+  description  String?
+  startDate    DateTime
+  endDate      DateTime
+  targetMetric String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  complianceLog ComplianceLog[]
+
+  @@index([userId])
+}
+
+model ComplianceLog {
+  id           String   @id @default(cuid())
+  experimentId String
+  date         DateTime
+  completed    Boolean
+  value        Float?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  experiment Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+
+  @@unique([experimentId, date])
+  @@index([experimentId])
+}

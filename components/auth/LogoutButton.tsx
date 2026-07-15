@@ -11,7 +11,7 @@ export function LogoutButton() {
     <button
       type="button"
       onClick={handleLogout}
-      className="w-full text-left flex items-center gap-2 px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors duration-200"
+      className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
     >
       <Icon name="logout" size={22} />
       Sair
