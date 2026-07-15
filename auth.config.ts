@@ -15,6 +15,7 @@ function isProtected(pathname: string): boolean {
  * Used by middleware; full providers live in auth.ts.
  */
 export const authConfig = {
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   pages: {
     signIn: "/login",
   },
