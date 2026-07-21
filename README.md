@@ -199,3 +199,26 @@ lib/middleware/       # requireAuth, rate limit
 ## Licença
 
 MIT — projeto de portfólio.
+
+---
+
+---
+
+## Captura automática de screenshots e vídeo
+
+Os scripts Playwright ficam no repositório do portfólio (`gabrielamorim.dev`) e gravam neste projeto em:
+
+`docs/screenshots/`
+
+```bash
+# no repo gabrielamorim.dev
+pnpm capture:install-browsers   # 1x
+cp .env.capture.example .env.capture.local
+# opcional: DEVLEVEL_URL=http://localhost:3000
+# credenciais demo: DEVLEVEL_EMAIL / DEVLEVEL_PASSWORD (defaults do seed)
+pnpm capture:devlevel
+```
+
+Arquivos gerados (nomes típicos): `01-landing.png` … `07-reflection.png`, `devlevel-demo.webm` (e `.mp4` / `demo.gif` se o `ffmpeg` estiver instalado).
+
+Credenciais demo do seed: `demo@devlevel.app` / `demo1234`.
